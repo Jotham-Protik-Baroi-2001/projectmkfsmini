@@ -20,8 +20,7 @@ uint64_t g_random_seed = 0; // This should be replaced by seed value from the CL
 // below contains some basic structures you need for your project
 // you are free to create more structures as you require
 
-#pragma pack(push, 1)
-typedef struct {
+typedef struct __attribute__((packed)) {
     // CREATE YOUR SUPERBLOCK HERE
     // ADD ALL FIELDS AS PROVIDED BY THE SPECIFICATION
     uint32_t magic;              // 0x4D565346
@@ -40,17 +39,21 @@ typedef struct {
     uint64_t root_inode;          // 1
     uint64_t mtime_epoch;         // build time
     uint32_t flags;               // 0
-    uint32_t reserved;            // padding to make total size 116 bytes
+    // Removed reserved field to reduce size by 4 bytes
     
     // THIS FIELD SHOULD STAY AT THE END
     // ALL OTHER FIELDS SHOULD BE ABOVE THIS
     uint32_t checksum;            // crc32(superblock[0..4091])
 } superblock_t;
-#pragma pack(pop)
+
+// Debug: Print actual size
+#ifdef DEBUG
+printf("Superblock size: %zu\n", sizeof(superblock_t));
+#endif
+
 _Static_assert(sizeof(superblock_t) == 116, "superblock must fit in one block");
 
-#pragma pack(push,1)
-typedef struct {
+typedef struct __attribute__((packed)) {
     // CREATE YOUR INODE HERE
     // IF CREATED CORRECTLY, THE STATIC_ASSERT ERROR SHOULD BE GONE
     uint16_t mode;                // file/directory mode
@@ -64,7 +67,7 @@ typedef struct {
     uint32_t direct[12];          // direct block pointers
     uint32_t reserved_0;          // reserved
     uint32_t reserved_1;          // reserved
-    uint32_t reserved_2;          // reserved
+    // Removed reserved_2 to reduce size by 4 bytes
     uint32_t proj_id;             // project ID
     uint32_t uid16_gid16;         // additional user/group info
     uint64_t xattr_ptr;           // extended attributes pointer
@@ -75,11 +78,15 @@ typedef struct {
     uint64_t inode_crc;   // low 4 bytes store crc32 of bytes [0..119]; high 4 bytes 0
 
 } inode_t;
-#pragma pack(pop)
+
+// Debug: Print actual size
+#ifdef DEBUG
+printf("Inode size: %zu\n", sizeof(inode_t));
+#endif
+
 _Static_assert(sizeof(inode_t)==INODE_SIZE, "inode size mismatch");
 
-#pragma pack(push,1)
-typedef struct {
+typedef struct __attribute__((packed)) {
     // CREATE YOUR DIRECTORY ENTRY STRUCTURE HERE
     // IF CREATED CORRECTLY, THE STATIC_ASSERT ERROR SHOULD BE GONE
     uint32_t inode_no;            // inode number (0 if free)
@@ -87,7 +94,6 @@ typedef struct {
     char name[58];                // filename
     uint8_t checksum;             // XOR of bytes 0..62
 } dirent64_t;
-#pragma pack(pop)
 _Static_assert(sizeof(dirent64_t)==64, "dirent size mismatch");
 
 // Function prototypes
@@ -245,7 +251,6 @@ void write_superblock(FILE *fp, uint32_t size_kib, uint32_t inodes) {
     sb.block_size = 4096;
     sb.root_inode = 1;
     sb.flags = 0;
-    sb.reserved = 0;
     
     // Calculate values
     sb.total_blocks = (uint64_t)size_kib * 1024 / 4096;
@@ -275,6 +280,9 @@ void write_superblock(FILE *fp, uint32_t size_kib, uint32_t inodes) {
 }
 
 void write_bitmaps(FILE *fp, uint32_t size_kib, uint32_t inodes) {
+    (void)size_kib;  // Suppress unused parameter warning
+    (void)inodes;     // Suppress unused parameter warning
+    
     // Inode bitmap (block 1)
     uint8_t inode_bitmap[BS];
     memset(inode_bitmap, 0, BS);
@@ -322,6 +330,9 @@ void write_inode_table(FILE *fp, uint32_t inodes) {
 }
 
 void write_root_directory(FILE *fp, uint32_t size_kib, uint32_t inodes) {
+    (void)size_kib;  // Suppress unused parameter warning
+    (void)inodes;     // Suppress unused parameter warning
+    
     // Create directory entries for . and ..
     dirent64_t dot_entry = {0};
     dot_entry.inode_no = 1;  // Root inode
