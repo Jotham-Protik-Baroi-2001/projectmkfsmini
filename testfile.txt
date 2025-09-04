@@ -1,1 +1,0 @@
-Hello, MiniVSFS! This is a test file.

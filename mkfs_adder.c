@@ -55,11 +55,11 @@ typedef struct __attribute__((packed)) {
     uint32_t direct[12];          // direct block pointers
     uint32_t reserved_0;          // reserved
     uint32_t reserved_1;          // reserved
-    // Removed reserved_2 to reduce size by 4 bytes
+    uint32_t reserved_2;          // reserved
     uint32_t proj_id;             // project ID
     uint32_t uid16_gid16;         // additional user/group info
     uint64_t xattr_ptr;           // extended attributes pointer
-    uint32_t padding;             // padding to make total size 128 bytes
+   
 
     // THIS FIELD SHOULD STAY AT THE END
     // ALL OTHER FIELDS SHOULD BE ABOVE THIS
@@ -359,7 +359,7 @@ void update_inode_table(FILE *fp, superblock_t *sb, int inode_num, const char *f
     new_inode.atime = time(NULL);
     new_inode.mtime = time(NULL);
     new_inode.ctime = time(NULL);
-    new_inode.direct[0] = data_block;  // First data block
+    new_inode.direct[0] = (uint32_t)(sb->data_region_start + data_block);  // First data block
     new_inode.proj_id = 9;
     
     // Calculate checksum
@@ -373,7 +373,7 @@ void update_inode_table(FILE *fp, superblock_t *sb, int inode_num, const char *f
     fseek(fp, sb->inode_table_start * BS, SEEK_SET);
     inode_t root_inode;
     fread(&root_inode, sizeof(root_inode), 1, fp);
-    root_inode.links++;  // Increment link count
+    //root_inode.links++;  // Increment link count
     inode_crc_finalize(&root_inode);
     
     fseek(fp, sb->inode_table_start * BS, SEEK_SET);
