@@ -218,3 +218,19 @@ Both programs include comprehensive error handling for:
 - Checksums are automatically calculated and verified
 - Timestamps are set to current time when creating/modifying
 - The root directory automatically contains "." and ".." entries
+
+##Check Codes
+
+```bash
+
+# superblock
+xxd -g1 -l 32 fs.img
+
+# see changes
+dd if=fs2.img bs=4096 skip=1 count=1 2>/dev/null | xxd -g1 | head  # inode bitmap
+dd if=fs2.img bs=4096 skip=2 count=1 2>/dev/null | xxd -g1 | head  # data bitmap
+dd if=fs2.img bs=4096 skip=7 count=1 2>/dev/null | xxd -g1 | head  # root dir
+dd if=fs2.img bs=4096 skip=8 count=1 2>/dev/null | xxd -g1 | head  # file data
+
+```
+
