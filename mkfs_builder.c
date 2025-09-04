@@ -343,9 +343,9 @@ void write_inode_table(FILE *fp, uint32_t inodes) {
     root_inode.gid = 0;
     root_inode.size_bytes = 2 * 64; // two directory entries
     uint64_t now = time(NULL);
-    root_inode.atime = time(NULL);
-    root_inode.mtime = time(NULL);
-    root_inode.ctime = time(NULL);
+    root_inode.atime = now;
+    root_inode.mtime = now;
+    root_inode.ctime = now;
     root_inode.direct[0] = (uint32_t)data_region_start; // (fixed) absolute first data block
     for (int i=1;i<12;i++) root_inode.direct[i] = 0; //12 direct pointers
     root_inode.proj_id = 9; 

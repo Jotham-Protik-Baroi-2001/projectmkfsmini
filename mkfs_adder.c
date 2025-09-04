@@ -269,6 +269,29 @@ int add_file_to_fs(const char *input_name, const char *output_name, const char *
     // Write file data
     write_file_data(output_fp, &sb, data_block, file_name);
     
+    // Refresh superblock mtime + checksum
+    sb.mtime_epoch = (uint64_t)time(NULL);
+    superblock_crc_finalize(&sb);
+    fseek(output_fp, 0, SEEK_SET);
+    if (fwrite(&sb, sizeof(sb), 1, output_fp) != 1) {
+        perror("rewrite superblock");
+        fclose(input_fp);
+        fclose(output_fp);
+        return -1;
+    }
+    // Re-pad the rest of block 0 with zeros so layout stays pristine
+    if (BS > sizeof(sb)) {
+        static uint8_t pad[BS];
+        memset(pad, 0, BS);
+        if (fwrite(pad, BS - sizeof(sb), 1, output_fp) != 1) {
+            perror("rewrite superblock pad");
+            fclose(input_fp);
+            fclose(output_fp);
+            return -1;
+        }
+    }
+
+    
     fclose(input_fp);
     fclose(output_fp);
     
@@ -317,28 +340,30 @@ int find_free_data_block(FILE *fp, superblock_t *sb) {
 }
 
 void update_bitmaps(FILE *fp, superblock_t *sb, int inode_num, int data_block) {
-    // Update inode bitmap
+    // --- Inode bitmap ---
     fseek(fp, sb->inode_bitmap_start * BS, SEEK_SET);
     uint8_t inode_bitmap[BS];
-    fread(inode_bitmap, BS, 1, fp);
-    
-    int inode_bit_idx = inode_num - 1; // Convert to 0-indexed
-    int byte_idx = inode_bit_idx / 8;
-    int bit_idx = inode_bit_idx % 8;
-    inode_bitmap[byte_idx] |= (1 << bit_idx);
-    
+    if (fread(inode_bitmap, BS, 1, fp) != 1) {
+        perror("fread inode bitmap");
+        return;
+    }
+
+    int inode_bit_idx = inode_num - 1;
+    inode_bitmap[inode_bit_idx / 8] |= (1 << (inode_bit_idx % 8));
+
     fseek(fp, sb->inode_bitmap_start * BS, SEEK_SET);
     fwrite(inode_bitmap, BS, 1, fp);
-    
-    // Update data bitmap
+
+    // --- Data bitmap ---
     fseek(fp, sb->data_bitmap_start * BS, SEEK_SET);
     uint8_t data_bitmap[BS];
-    fread(data_bitmap, BS, 1, fp);
-    
-    int byte_idx_data = data_block / 8;
-    int bit_idx_data = data_block % 8;
-    data_bitmap[byte_idx_data] |= (1 << bit_idx_data);
-    
+    if (fread(data_bitmap, BS, 1, fp) != 1) {
+        perror("fread data bitmap");
+        return;
+    }
+
+    data_bitmap[data_block / 8] |= (1 << (data_block % 8));
+
     fseek(fp, sb->data_bitmap_start * BS, SEEK_SET);
     fwrite(data_bitmap, BS, 1, fp);
 }
@@ -372,7 +397,10 @@ void update_inode_table(FILE *fp, superblock_t *sb, int inode_num, const char *f
     // Update root inode link count
     fseek(fp, sb->inode_table_start * BS, SEEK_SET);
     inode_t root_inode;
-    fread(&root_inode, sizeof(root_inode), 1, fp);
+    if (fread(&root_inode, sizeof(root_inode), 1, fp) != 1) {
+        perror("fread root inode");
+        return;
+    }
     //root_inode.links++;  // Increment link count
     inode_crc_finalize(&root_inode);
     
@@ -384,19 +412,23 @@ void update_root_directory(FILE *fp, superblock_t *sb, const char *file_name, in
     // Read root directory block
     fseek(fp, sb->data_region_start * BS, SEEK_SET);
     uint8_t root_block[BS];
-    fread(root_block, BS, 1, fp);
+    if (fread(root_block, BS, 1, fp) != 1) {
+        perror("fread root dir block");
+        return;
+    }
+
     
-    // Find first free directory entry
     dirent64_t *entries = (dirent64_t *)root_block;
-    int entry_idx = 0;
-    while (entry_idx < BS / sizeof(dirent64_t) && entries[entry_idx].inode_no != 0) {
+    size_t entry_idx = 0;
+    const size_t max = BS / sizeof(dirent64_t);
+    while (entry_idx < max && entries[entry_idx].inode_no != 0) {
         entry_idx++;
     }
-    
-    if (entry_idx >= BS / sizeof(dirent64_t)) {
+    if (entry_idx >= max) {
         fprintf(stderr, "Error: no free directory entries in root\n");
         return;
     }
+
     
     // Create new directory entry
     dirent64_t new_entry = {0};
