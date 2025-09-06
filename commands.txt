@@ -1,0 +1,13 @@
+# 1. Create the initial file system
+./mkfs_builder --image test.img --size-kib 1024 --inodes 256
+
+# 2. Add all files sequentially
+./mkfs_adder --input test.img --output test1.img --file file_15.txt
+./mkfs_adder --input test1.img --output test2.img --file file_25.txt
+./mkfs_adder --input test2.img --output test3.img --file file_31.txt
+./mkfs_adder --input test3.img --output final.img --file file_33.txt
+
+
+
+chmod +x run_project.sh
+./run_project.sh

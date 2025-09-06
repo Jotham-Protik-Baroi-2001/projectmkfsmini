@@ -1,0 +1,154 @@
+# MiniVSFS Image File Verification Commands
+# Use these commands to check if your .img files are created correctly
+
+# =============================================================================
+# 1. BASIC FILE INFORMATION
+# =============================================================================
+
+# Check file sizes and creation times
+ls -la *.img
+
+# Check file sizes in human-readable format
+ls -lh *.img
+
+# =============================================================================
+# 2. SUPERBLOCK VERIFICATION
+# =============================================================================
+
+# View the first 32 bytes (superblock header)
+echo "=== Superblock Header ==="
+xxd -g1 -l 32 test.img
+
+# Check magic number (should be 0x4D565346 = "FSVM")
+echo "=== Magic Number Check ==="
+xxd -g1 -l 4 test.img
+
+# View more superblock details (first 64 bytes)
+echo "=== Extended Superblock ==="
+xxd -g1 -l 64 test.img
+
+# =============================================================================
+# 3. BITMAP VERIFICATION
+# =============================================================================
+
+# Check inode bitmap (block 1)
+echo "=== Inode Bitmap (Block 1) ==="
+dd if=test.img bs=4096 skip=1 count=1 2>/dev/null | xxd -g1 | head -5
+
+# Check data bitmap (block 2)
+echo "=== Data Bitmap (Block 2) ==="
+dd if=test.img bs=4096 skip=2 count=1 2>/dev/null | xxd -g1 | head -5
+
+# =============================================================================
+# 4. INODE TABLE VERIFICATION
+# =============================================================================
+
+# Check root inode (first inode in table)
+echo "=== Root Inode (Block 3) ==="
+dd if=test.img bs=4096 skip=3 count=1 2>/dev/null | xxd -g1 | head -10
+
+# =============================================================================
+# 5. ROOT DIRECTORY VERIFICATION
+# =============================================================================
+
+# Check root directory entries (block 11 in your case)
+echo "=== Root Directory Entries ==="
+dd if=test.img bs=4096 skip=11 count=1 2>/dev/null | xxd -g1 | head -15
+
+# Check root directory in final.img (with all files)
+echo "=== Final Root Directory (with all files) ==="
+dd if=final.img bs=4096 skip=11 count=1 2>/dev/null | xxd -g1 | head -20
+
+# =============================================================================
+# 6. FILE CONTENT VERIFICATION
+# =============================================================================
+
+# Check first data block (where file content is stored)
+echo "=== First Data Block Content ==="
+dd if=final.img bs=4096 skip=12 count=1 2>/dev/null | xxd -g1 | head -10
+
+# =============================================================================
+# 7. COMPARISON BETWEEN IMAGES
+# =============================================================================
+
+# Compare file sizes
+echo "=== File Size Comparison ==="
+ls -la test.img test1.img test2.img test3.img final.img
+
+# Check differences between images
+echo "=== Size Differences ==="
+echo "test.img size:"
+ls -la test.img | awk '{print $5}'
+echo "final.img size:"
+ls -la final.img | awk '{print $5}'
+
+# =============================================================================
+# 8. DETAILED HEXDUMP ANALYSIS
+# =============================================================================
+
+# Full hexdump of first 512 bytes (first block + some of second)
+echo "=== Full Hexdump (First 512 bytes) ==="
+xxd -g1 -l 512 test.img
+
+# =============================================================================
+# 9. SPECIFIC STRUCTURE CHECKS
+# =============================================================================
+
+# Check if magic number is correct (should be 0x4D565346)
+echo "=== Magic Number Verification ==="
+xxd -g1 -l 4 test.img | grep -q "46 53 56 4d" && echo "✓ Magic number correct" || echo "✗ Magic number incorrect"
+
+# Check block size (should be 4096 = 0x1000)
+echo "=== Block Size Verification ==="
+xxd -g1 -l 8 test.img | tail -1 | grep -q "00 10 00 00" && echo "✓ Block size correct" || echo "✗ Block size incorrect"
+
+# =============================================================================
+# 10. QUICK VERIFICATION SCRIPT
+# =============================================================================
+
+# Run all basic checks at once
+echo "=== QUICK VERIFICATION ==="
+echo "1. File sizes:"
+ls -la *.img
+echo ""
+echo "2. Magic number:"
+xxd -g1 -l 4 test.img
+echo ""
+echo "3. Root directory entries:"
+dd if=final.img bs=4096 skip=11 count=1 2>/dev/null | xxd -g1 | head -10
+echo ""
+echo "4. File content:"
+dd if=final.img bs=4096 skip=12 count=1 2>/dev/null | xxd -g1 | head -5
+
+# =============================================================================
+# 11. EXPECTED RESULTS
+# =============================================================================
+
+# What you should see:
+# - Magic number: 46 53 56 4d (0x4D565346)
+# - Block size: 00 10 00 00 (4096)
+# - Root directory: entries for ., .., and your 4 files
+# - File content: actual text from your .txt files
+
+# =============================================================================
+# 12. TROUBLESHOOTING
+# =============================================================================
+
+# If you get "dd: invalid number" errors, try:
+# dd if=test.img bs=4096 skip=1 count=1 2>/dev/null | xxd -g1
+
+# If you get permission errors, make sure you're in the right directory:
+# pwd
+# ls -la *.img
+
+# =============================================================================
+# USAGE INSTRUCTIONS
+# =============================================================================
+
+# 1. Copy and paste these commands one by one into your terminal
+# 2. Or save this file and run: bash verification_commands.txt
+# 3. Compare the output with expected results
+# 4. If anything looks wrong, check the specific section
+
+echo "=== Verification Complete ==="
+echo "If you see the magic number 46 53 56 4d and proper file sizes, your images are correct!"
