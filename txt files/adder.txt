@@ -216,48 +216,38 @@ int add_file_to_fs(const char *input_name, const char *output_name, const char *
     }
     
    
-    // First copy the input file to output file
-    FILE *temp_fp = fopen(output_name, "wb");
-    if (!temp_fp) {
-        fprintf(stderr, "Error: cannot create output image '%s': %s\n", output_name, strerror(errno));
-        fclose(input_fp);
-        return -1;
-    }
-    
-    fseek(input_fp, 0, SEEK_SET);
-    uint8_t buffer[BS];
-    size_t bytes_read;
-    while ((bytes_read = fread(buffer, 1, BS, input_fp)) > 0) {
-        fwrite(buffer, 1, bytes_read, temp_fp);
-    }
-    fclose(temp_fp);
-    
-    // Now open the output file for reading/writing
-    FILE *output_fp = fopen(output_name, "r+b");
-    if (!output_fp) {
-        fprintf(stderr, "Error: cannot open output image '%s' for read/write: %s\n", output_name, strerror(errno));
-        fclose(input_fp);
-        return -1;
-    }
-    
-    int inode_num = find_free_inode(output_fp, &sb);
+    int inode_num = find_free_inode(input_fp, &sb);
     if (inode_num == -1) {
         fprintf(stderr, "Error: no free inodes available\n");
         fclose(input_fp);
-        fclose(output_fp);
         return -1;
     }
     
-    int data_block = find_free_data_block(output_fp, &sb);
+    int data_block = find_free_data_block(input_fp, &sb);
     if (data_block == -1) {
         fprintf(stderr, "Error: no free data blocks available\n");
         fclose(input_fp);
-        fclose(output_fp);
         return -1;
     }
     
     printf("Adding file '%s' (size: %zu bytes) to inode %d, data block %d\n", 
            file_name, file_size, inode_num, data_block);
+    
+   
+    FILE *output_fp = fopen(output_name, "wb");
+    if (!output_fp) {
+        fprintf(stderr, "Error: cannot create output image '%s': %s\n", output_name, strerror(errno));
+        fclose(input_fp);
+        return -1;
+    }
+    
+    
+    fseek(input_fp, 0, SEEK_SET);
+    uint8_t buffer[BS];
+    size_t bytes_read;
+    while ((bytes_read = fread(buffer, 1, BS, input_fp)) > 0) {
+        fwrite(buffer, 1, bytes_read, output_fp);
+    }
     
    
     update_bitmaps(output_fp, &sb, inode_num, data_block);
@@ -306,7 +296,6 @@ int find_free_inode(FILE *fp, superblock_t *sb) {
     
     uint8_t bitmap[BS];
     if (fread(bitmap, BS, 1, fp) != 1) {
-        perror("fread inode bitmap");
         return -1;
     }
     
@@ -327,7 +316,6 @@ int find_free_data_block(FILE *fp, superblock_t *sb) {
     
     uint8_t bitmap[BS];
     if (fread(bitmap, BS, 1, fp) != 1) {
-        perror("fread data bitmap");
         return -1;
     }
     
@@ -425,11 +413,6 @@ void update_root_directory(FILE *fp, superblock_t *sb, const char *file_name, in
     dirent64_t *entries = (dirent64_t *)root_block;
     size_t entry_idx = 0;
     const size_t max = BS / sizeof(dirent64_t);
-    
-    // Skip the standard "." and ".." entries (first two entries)
-    entry_idx = 2;
-    
-    // Find the first truly empty entry (inode_no == 0)
     while (entry_idx < max && entries[entry_idx].inode_no != 0) {
         entry_idx++;
     }
