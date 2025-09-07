@@ -8,6 +8,7 @@ echo "=========================================="
 echo "    MiniVSFS Project Automation Script"
 echo "=========================================="
 echo ""
+echo "Assalamualaikum. Welcome to the MiniVSFS Project Automation Script. This script is designed to showcase our project with just one command. We will start now."
 
 # Colors for output (with fallback for terminals that don't support colors)
 if [ -t 1 ]; then
@@ -332,4 +333,9 @@ echo "  - Fedora (dnf)"
 echo "  - Arch Linux (pacman)"
 echo "  - openSUSE (zypper)"
 echo "  - Alpine Linux (apk)"
+echo "This Project is brought to you by Group 9 from section 29. We hope we were successful in this project."
+echo "Thank you for your time."
+echo "Assalamualaikum"
+
+
 echo ""
